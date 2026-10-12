@@ -45,6 +45,12 @@ export function ProductAdminList() {
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
+            href="/admin/orders"
+            className="rounded-lg border border-black/20 px-4 py-2 text-sm font-medium"
+          >
+            Pedidos
+          </Link>
+          <Link
             href="/admin/settings"
             className="rounded-lg border border-black/20 px-4 py-2 text-sm font-medium"
           >

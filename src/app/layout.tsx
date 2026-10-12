@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { CartProvider } from "@/lib/cart-context";
 import { SettingsProvider } from "@/lib/settings-context";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -32,9 +33,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <SettingsProvider>
-          <SiteHeader />
-          {children}
-          <SiteFooter />
+          <CartProvider>
+            <SiteHeader />
+            {children}
+            <SiteFooter />
+          </CartProvider>
         </SettingsProvider>
       </body>
     </html>

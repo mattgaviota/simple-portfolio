@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
+import { useCart } from "@/lib/cart-context";
 import { formatPrice } from "@/lib/format";
 import { getProduct } from "@/lib/products";
 import { useSettings } from "@/lib/settings-context";
@@ -12,7 +13,11 @@ import type { Product } from "@/types/product";
 export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { settings } = useSettings();
+  const { add } = useCart();
   const [product, setProduct] = useState<Product | null | undefined>();
+  const [colorName, setColorName] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [added, setAdded] = useState(false);
 
   useEffect(() => {
     getProduct(id)
@@ -53,6 +58,7 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   }
 
   const soldOut = product.amount <= 0;
+  const selectedColor = colorName || product.colors[0]?.name || "";
   const whatsappUrl = whatsappMessageUrl(
     settings.whatsapp,
     `Hola, quisiera consultar por el producto "${product.name}": ${window.location.href}`,
@@ -91,23 +97,72 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
           </p>
 
           {product.colors.length > 0 && (
-            <div>
-              <h2 className="mb-2 text-sm font-medium">Colores</h2>
-              <ul className="flex flex-wrap gap-3">
-                {product.colors.map((color, i) => (
-                  <li
-                    key={i}
-                    className="flex items-center gap-2 rounded-full border border-black/10 bg-white/70 py-1 pl-1.5 pr-3 text-sm"
+            <fieldset>
+              <legend className="mb-2 text-sm font-medium">Colores</legend>
+              <div className="flex flex-wrap gap-3">
+                {product.colors.map((color) => (
+                  <label
+                    key={color.name}
+                    className="flex cursor-pointer items-center gap-2 rounded-full border border-black/10 bg-white/70 py-1 pl-1.5 pr-3 text-sm has-checked:border-accent has-checked:ring-2 has-checked:ring-accent/40"
                   >
+                    <input
+                      type="radio"
+                      name="color"
+                      value={color.name}
+                      checked={selectedColor === color.name}
+                      onChange={() => setColorName(color.name)}
+                      className="sr-only"
+                    />
                     <span
                       className="h-5 w-5 rounded-full border border-black/20"
                       style={{ backgroundColor: color.hex }}
                     />
                     {color.name}
-                  </li>
+                  </label>
                 ))}
-              </ul>
+              </div>
+            </fieldset>
+          )}
+
+          {!soldOut && (
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                Cantidad
+                <input
+                  type="number"
+                  min={1}
+                  max={product.amount}
+                  value={quantity}
+                  onChange={(e) =>
+                    setQuantity(
+                      Math.min(
+                        product.amount,
+                        Math.max(1, Math.floor(Number(e.target.value)) || 1),
+                      ),
+                    )
+                  }
+                  className="w-20 rounded-lg border border-black/20 bg-white px-3 py-2"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  add({ productId: product.id, colorName: selectedColor, quantity });
+                  setAdded(true);
+                }}
+                className="rounded-lg bg-accent px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+              >
+                Agregar al carrito
+              </button>
             </div>
+          )}
+          {added && (
+            <p role="status" className="text-sm text-neutral-700">
+              Agregado.{" "}
+              <Link href="/cart" className="font-medium text-accent underline">
+                Ver carrito
+              </Link>
+            </p>
           )}
 
           {whatsappUrl && (
@@ -115,7 +170,7 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-flex items-center justify-center gap-2 self-start rounded-lg bg-accent px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+              className="mt-2 inline-flex items-center justify-center gap-2 self-start rounded-lg border border-black/20 px-6 py-3 text-sm font-medium transition-colors hover:bg-white/70"
             >
               <FaWhatsapp className="h-5 w-5" />
               Consultar con el vendedor

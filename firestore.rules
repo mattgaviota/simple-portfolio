@@ -20,6 +20,18 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Orders are created and paid-status updated only by the server (the Admin
+    // SDK bypasses rules). The admin may only mark shipping; cancelling goes
+    // through the server, and orders are never deleted.
+    match /orders/{orderId} {
+      allow read: if isAdmin();
+      allow create: if false;
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['shippedAt', 'updatedAt']);
+      allow delete: if false;
+    }
+
     match /products/{productId} {
       allow read: if true;
       allow create, update: if isAdmin()

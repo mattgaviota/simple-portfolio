@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { FaCartShopping } from "react-icons/fa6";
+import { useCart } from "@/lib/cart-context";
 import { useSettings } from "@/lib/settings-context";
 import { MOCK_LOGO } from "@/types/settings";
 
 export function SiteHeader() {
   const { settings, loading } = useSettings();
+  const { count } = useCart();
 
   return (
-    <header className="mx-auto flex w-full max-w-7xl items-center px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <header className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <Link href="/" className="flex min-w-0 items-center gap-4 sm:gap-6">
         {loading ? (
           <>
@@ -34,6 +37,18 @@ export function SiteHeader() {
               )}
             </span>
           </>
+        )}
+      </Link>
+      <Link
+        href="/cart"
+        aria-label={`Carrito, ${count} productos`}
+        className="relative shrink-0 rounded-full border border-black/10 bg-white/80 p-3 text-accent shadow-sm hover:bg-white"
+      >
+        <FaCartShopping className="h-5 w-5" />
+        {count > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-xs font-semibold text-white">
+            {count}
+          </span>
         )}
       </Link>
     </header>
