@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #fdf6fb;
+  --foreground: #3a3350;
+  --accent: #6b5ca5;
+  --accent-hover: #5a4c91;
+  --pastel-lavender: #e6defa;
+  --pastel-pink: #fde0ec;
+  --pastel-mint: #d9f4e6;
+  --pastel-peach: #ffe8d6;
+  --pastel-sky: #dcecfb;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --font-sans: var(--font-jakarta);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
+  min-height: 100vh;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-jakarta), Arial, Helvetica, sans-serif;
+  background-color: var(--background);
+  background-image:
+    radial-gradient(at 12% 8%, var(--pastel-lavender) 0, transparent 45%),
+    radial-gradient(at 88% 12%, var(--pastel-pink) 0, transparent 45%),
+    radial-gradient(at 80% 85%, var(--pastel-mint) 0, transparent 45%),
+    radial-gradient(at 10% 90%, var(--pastel-peach) 0, transparent 45%),
+    radial-gradient(at 50% 50%, var(--pastel-sky) 0, transparent 55%);
+  background-attachment: fixed;
 }
