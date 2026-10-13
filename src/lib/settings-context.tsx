@@ -27,6 +27,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     if (!loading) document.title = settings.title;
   }, [loading, settings.title]);
 
+  useEffect(() => {
+    const style = document.documentElement.style;
+    style.setProperty("--accent", settings.accentColor);
+    style.setProperty("--background", settings.backgroundColor);
+    style.setProperty("--foreground", settings.foregroundColor);
+  }, [settings.accentColor, settings.backgroundColor, settings.foregroundColor]);
+
   const value = useMemo(
     () => ({ settings, loading, setSettings }),
     [settings, loading],

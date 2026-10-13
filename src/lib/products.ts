@@ -16,7 +16,13 @@ import {
   uploadBytes,
 } from "firebase/storage";
 import { getDb, getStorageClient } from "@/lib/firebase";
-import type { Product, ProductColor, ProductInput } from "@/types/product";
+import {
+  MAX_EXTRA_IMAGES,
+  type Product,
+  type ProductColor,
+  type ProductImage,
+  type ProductInput,
+} from "@/types/product";
 
 const COLLECTION = "products";
 
@@ -27,6 +33,17 @@ function toColors(value: unknown): ProductColor[] {
     hex: String(c?.hex ?? "#000000"),
   }));
 }
+
+function toExtraImages(value: unknown): ProductImage[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((i) => ({ url: String(i?.url ?? ""), path: String(i?.path ?? "") }))
+    .filter((i) => i.url)
+    .slice(0, MAX_EXTRA_IMAGES);
+}
+
+/** Change requested for one extra image slot when saving a product. */
+export type ExtraSlot = { file: File | null; remove: boolean };
 
 function toProduct(id: string, data: Record<string, unknown>): Product {
   return {
@@ -40,6 +57,7 @@ function toProduct(id: string, data: Record<string, unknown>): Product {
     colors: toColors(data.colors),
     imageUrl: String(data.imageUrl ?? ""),
     imagePath: String(data.imagePath ?? ""),
+    extraImages: toExtraImages(data.extraImages),
     createdAt: Number(data.createdAt ?? 0),
   };
 }
@@ -74,16 +92,30 @@ export async function getProduct(id: string): Promise<Product | null> {
   return snap.exists() ? toProduct(snap.id, snap.data()) : null;
 }
 
-export async function createProduct(input: ProductInput, image: File) {
-  const uploaded = await uploadImage(image);
+export async function createProduct(
+  input: ProductInput,
+  image: File,
+  extras: (File | null)[] = [],
+) {
+  const uploadedPaths: string[] = [];
   try {
+    const main = await uploadImage(image);
+    uploadedPaths.push(main.imagePath);
+    const extraImages: ProductImage[] = [];
+    for (const file of extras.slice(0, MAX_EXTRA_IMAGES)) {
+      if (!file) continue;
+      const up = await uploadImage(file);
+      uploadedPaths.push(up.imagePath);
+      extraImages.push({ url: up.imageUrl, path: up.imagePath });
+    }
     await addDoc(collection(getDb(), COLLECTION), {
       ...input,
-      ...uploaded,
+      ...main,
+      extraImages,
       createdAt: Date.now(),
     });
   } catch (error) {
-    await removeImage(uploaded.imagePath);
+    await Promise.all(uploadedPaths.map(removeImage));
     throw error;
   }
 }
@@ -92,21 +124,46 @@ export async function updateProduct(
   product: Product,
   input: ProductInput,
   newImage: File | null,
+  slots: ExtraSlot[] = [],
 ) {
-  const uploaded = newImage ? await uploadImage(newImage) : null;
+  const uploadedPaths: string[] = [];
+  const staleExtraPaths: string[] = [];
   try {
+    const uploaded = newImage ? await uploadImage(newImage) : null;
+    if (uploaded) uploadedPaths.push(uploaded.imagePath);
+
+    const extraImages: ProductImage[] = [];
+    for (let i = 0; i < MAX_EXTRA_IMAGES; i++) {
+      const current = product.extraImages[i];
+      const slot = slots[i];
+      if (slot?.file) {
+        const up = await uploadImage(slot.file);
+        uploadedPaths.push(up.imagePath);
+        extraImages.push({ url: up.imageUrl, path: up.imagePath });
+        if (current) staleExtraPaths.push(current.path);
+      } else if (slot?.remove) {
+        if (current) staleExtraPaths.push(current.path);
+      } else if (current) {
+        extraImages.push(current);
+      }
+    }
+
     await updateDoc(doc(getDb(), COLLECTION, product.id), {
       ...input,
       ...(uploaded ?? {}),
+      extraImages,
     });
   } catch (error) {
-    if (uploaded) await removeImage(uploaded.imagePath);
+    await Promise.all(uploadedPaths.map(removeImage));
     throw error;
   }
-  if (uploaded) await removeImage(product.imagePath);
+  if (newImage) await removeImage(product.imagePath);
+  await Promise.all(staleExtraPaths.map(removeImage));
 }
 
 export async function deleteProduct(product: Product) {
   await deleteDoc(doc(getDb(), COLLECTION, product.id));
-  await removeImage(product.imagePath);
+  await Promise.all(
+    [product.imagePath, ...product.extraImages.map((i) => i.path)].map(removeImage),
+  );
 }

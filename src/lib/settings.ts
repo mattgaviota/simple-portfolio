@@ -1,7 +1,12 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 import { removeImage, uploadImage } from "@/lib/products";
-import { DEFAULT_SETTINGS, type StoreSettings } from "@/types/settings";
+import {
+  DEFAULT_SETTINGS,
+  HEX_RE,
+  type ColorKey,
+  type StoreSettings,
+} from "@/types/settings";
 
 const REF = ["settings", "store"] as const;
 
@@ -10,9 +15,20 @@ export async function getSettings(): Promise<StoreSettings> {
   const data = snap.exists() ? snap.data() : {};
   const pick = (key: keyof StoreSettings) =>
     typeof data[key] === "string" ? (data[key] as string) : DEFAULT_SETTINGS[key];
+  const pickColor = (key: ColorKey) =>
+    typeof data[key] === "string" && HEX_RE.test(data[key])
+      ? (data[key] as string)
+      : DEFAULT_SETTINGS[key];
   return {
     title: pick("title") || DEFAULT_SETTINGS.title,
     slogan: data.slogan === undefined ? DEFAULT_SETTINGS.slogan : pick("slogan"),
+    gallerySubtitle:
+      data.gallerySubtitle === undefined
+        ? DEFAULT_SETTINGS.gallerySubtitle
+        : pick("gallerySubtitle"),
+    accentColor: pickColor("accentColor"),
+    backgroundColor: pickColor("backgroundColor"),
+    foregroundColor: pickColor("foregroundColor"),
     logoUrl: pick("logoUrl"),
     logoPath: pick("logoPath"),
     instagram: pick("instagram"),

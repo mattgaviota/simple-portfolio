@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
+import { ImageCarousel } from "@/components/image-carousel";
 import { useCart } from "@/lib/cart-context";
 import { formatPrice } from "@/lib/format";
 import { getProduct } from "@/lib/products";
@@ -68,19 +69,17 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
     <>
       {backLink}
       <article className="grid gap-8 md:grid-cols-2">
-        <div className="relative aspect-square overflow-hidden rounded-xl border border-black/10 bg-white/50">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={product.imageUrl}
-            alt={product.name}
-            className={`h-full w-full object-cover ${soldOut ? "opacity-60" : ""}`}
-          />
+        <ImageCarousel
+          images={[product.imageUrl, ...product.extraImages.map((i) => i.url)]}
+          alt={product.name}
+          dimmed={soldOut}
+        >
           {soldOut && (
             <span className="absolute left-4 top-4 rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white">
               Agotado
             </span>
           )}
-        </div>
+        </ImageCarousel>
 
         <div className="flex flex-col gap-5">
           {product.categoryName && (

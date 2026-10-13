@@ -8,6 +8,13 @@ export type Category = {
   name: string;
 };
 
+export type ProductImage = {
+  url: string;
+  path: string;
+};
+
+export const MAX_EXTRA_IMAGES = 2;
+
 export type Product = {
   id: string;
   name: string;
@@ -19,6 +26,7 @@ export type Product = {
   colors: ProductColor[];
   imageUrl: string;
   imagePath: string;
+  extraImages: ProductImage[];
   createdAt: number;
 };
 

@@ -1,17 +1,40 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ProductCard } from "@/components/product-card";
 import { listProducts } from "@/lib/products";
 import type { Product } from "@/types/product";
 
+const PAGE_SIZE = 20;
+
 const gridClass =
-  "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+  "grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-3 xl:grid-cols-4";
 
 export function ProductGrid() {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [error, setError] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [count, setCount] = useState(PAGE_SIZE);
+  const sentinel = useRef<HTMLDivElement>(null);
+  const hasMore =
+    !!products &&
+    count <
+      (selected
+        ? products.filter((p) => p.categoryId === selected).length
+        : products.length);
+
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) setCount((c) => c + PAGE_SIZE);
+      },
+      { rootMargin: "400px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, count]);
 
   useEffect(() => {
     listProducts().then(setProducts).catch(() => setError(true));
@@ -39,7 +62,7 @@ export function ProductGrid() {
         {Array.from({ length: 8 }, (_, i) => (
           <div
             key={i}
-            className="aspect-[3/4] animate-pulse rounded-xl bg-white/60"
+            className="aspect-square animate-pulse rounded-xl bg-white/60"
           />
         ))}
       </div>
@@ -76,7 +99,10 @@ export function ProductGrid() {
           <button
             type="button"
             aria-pressed={selected === null}
-            onClick={() => setSelected(null)}
+            onClick={() => {
+              setSelected(null);
+              setCount(PAGE_SIZE);
+            }}
             className={chipClass(selected === null)}
           >
             Todos
@@ -86,7 +112,10 @@ export function ProductGrid() {
               key={id}
               type="button"
               aria-pressed={selected === id}
-              onClick={() => setSelected(id)}
+              onClick={() => {
+                setSelected(id);
+                setCount(PAGE_SIZE);
+              }}
               className={chipClass(selected === id)}
             >
               {name}
@@ -95,10 +124,11 @@ export function ProductGrid() {
         </div>
       )}
       <div className={gridClass}>
-        {visible.map((product) => (
+        {visible.slice(0, count).map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}
       </div>
+      {hasMore && <div ref={sentinel} aria-hidden className="h-10" />}
     </>
   );
 }

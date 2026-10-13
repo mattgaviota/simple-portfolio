@@ -1,19 +1,90 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { DataTable, type Column } from "@/components/data-table";
 import { useAuth } from "@/lib/auth";
 import { formatPrice } from "@/lib/format";
 import { deleteProduct, listProducts } from "@/lib/products";
 import type { Product } from "@/types/product";
 
+const columns = (onDelete: (p: Product) => void): Column<Product>[] => [
+  {
+    id: "image",
+    header: null,
+    srHeader: "Imagen",
+    className: "w-16",
+    cell: (p) => (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={p.imageUrl} alt="" className="h-12 w-12 rounded-lg object-cover" />
+    ),
+  },
+  {
+    id: "name",
+    header: "Nombre",
+    sortValue: (p) => p.name,
+    className: "max-w-56 font-medium",
+    cell: (p) => <span className="block truncate">{p.name}</span>,
+  },
+  {
+    id: "price",
+    header: "Precio",
+    align: "right",
+    sortValue: (p) => p.price,
+    className: "whitespace-nowrap",
+    cell: (p) => formatPrice(p.price),
+  },
+  {
+    id: "amount",
+    header: "Stock",
+    align: "right",
+    sortValue: (p) => p.amount,
+    cell: (p) => (
+      <span className={p.amount <= 0 ? "font-medium text-red-600" : ""}>
+        {p.amount}
+      </span>
+    ),
+  },
+  {
+    id: "category",
+    header: "Categoría",
+    className: "text-neutral-600",
+    cell: (p) => p.categoryName,
+  },
+  {
+    id: "actions",
+    header: null,
+    srHeader: "Acciones",
+    align: "right",
+    className: "whitespace-nowrap",
+    cell: (p) => (
+      <>
+        <Link
+          href={`/admin/${p.id}/edit`}
+          className="mr-4 font-medium underline-offset-2 hover:underline"
+        >
+          Editar
+        </Link>
+        <button
+          type="button"
+          onClick={() => onDelete(p)}
+          className="font-medium text-red-600 underline-offset-2 hover:underline"
+        >
+          Eliminar
+        </button>
+      </>
+    ),
+  },
+];
+
 export function ProductAdminList() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[] | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -21,6 +92,22 @@ export function ProductAdminList() {
       .then(setProducts)
       .catch(() => setError("No se pudieron cargar los productos."));
   }, [reloadKey]);
+
+  const categories = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of products ?? []) {
+      if (p.categoryId && p.categoryName) map.set(p.categoryId, p.categoryName);
+    }
+    return [...map].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [products]);
+
+  const rows = useMemo(
+    () =>
+      categoryFilter
+        ? (products ?? []).filter((p) => p.categoryId === categoryFilter)
+        : (products ?? []),
+    [products, categoryFilter],
+  );
 
   async function confirmDelete() {
     if (!pendingDelete) return;
@@ -45,36 +132,11 @@ export function ProductAdminList() {
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
-            href="/admin/orders"
-            className="rounded-lg border border-black/20 px-4 py-2 text-sm font-medium"
-          >
-            Pedidos
-          </Link>
-          <Link
-            href="/admin/settings"
-            className="rounded-lg border border-black/20 px-4 py-2 text-sm font-medium"
-          >
-            Ajustes
-          </Link>
-          <Link
-            href="/admin/categories"
-            className="rounded-lg border border-black/20 px-4 py-2 text-sm font-medium"
-          >
-            Categorías
-          </Link>
-          <Link
             href="/admin/new"
             className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
           >
             Nuevo producto
           </Link>
-          <button
-            type="button"
-            onClick={logout}
-            className="rounded-lg border border-black/20 px-4 py-2 text-sm font-medium"
-          >
-            Cerrar sesión
-          </button>
         </div>
       </div>
 
@@ -85,38 +147,36 @@ export function ProductAdminList() {
       ) : products.length === 0 ? (
         <p className="text-neutral-500">Aún no hay productos.</p>
       ) : (
-        <ul className="divide-y divide-black/10 rounded-xl border border-black/10">
-          {products.map((p) => (
-            <li key={p.id} className="flex items-center gap-4 p-3 sm:p-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={p.imageUrl}
-                alt={p.name}
-                className="h-14 w-14 shrink-0 rounded-lg object-cover"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{p.name}</p>
-                <p className="text-sm text-neutral-500">
-                  {formatPrice(p.price)} · {p.amount} en stock
-                  {p.categoryName && ` · ${p.categoryName}`}
-                </p>
-              </div>
-              <Link
-                href={`/admin/${p.id}/edit`}
-                className="text-sm font-medium underline-offset-2 hover:underline"
+        <>
+          <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+            <label className="flex items-center gap-2 font-medium">
+              Categoría
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="rounded-lg border border-black/20 bg-white/80 px-3 py-2 font-normal"
               >
-                Editar
-              </Link>
-              <button
-                type="button"
-                onClick={() => setPendingDelete(p)}
-                className="text-sm font-medium text-red-600 underline-offset-2 hover:underline"
-              >
-                Eliminar
-              </button>
-            </li>
-          ))}
-        </ul>
+                <option value="">Todas</option>
+                {categories.map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="text-neutral-500">
+              {rows.length} {rows.length === 1 ? "producto" : "productos"}
+            </span>
+          </div>
+
+          <DataTable
+            columns={columns(setPendingDelete)}
+            rows={rows}
+            rowKey={(p) => p.id}
+            emptyMessage="No hay productos en esta categoría."
+            resetKey={categoryFilter}
+          />
+        </>
       )}
 
       {pendingDelete && (

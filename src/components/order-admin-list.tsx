@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { DataTable, type Column } from "@/components/data-table";
 import { OrderStatusBadges } from "@/components/order-status";
 import { formatPrice } from "@/lib/format";
 import { orderLabel } from "@/types/order";
@@ -49,6 +50,92 @@ export function OrderAdminList() {
     }
   }
 
+  const columns: Column<Order>[] = [
+    {
+      id: "number",
+      header: "Pedido",
+      sortValue: (o) => o.createdAt,
+      className: "whitespace-nowrap font-medium",
+      cell: (o) => orderLabel(o),
+    },
+    {
+      id: "customer",
+      header: "Cliente",
+      sortValue: (o) => o.shipping.name,
+      className: "max-w-48",
+      cell: (o) => <span className="block truncate">{o.shipping.name}</span>,
+    },
+    {
+      id: "date",
+      header: "Fecha",
+      sortValue: (o) => o.createdAt,
+      className: "whitespace-nowrap text-neutral-600",
+      cell: (o) => new Date(o.createdAt).toLocaleString("es-AR"),
+    },
+    {
+      id: "items",
+      header: "Productos",
+      align: "right",
+      sortValue: (o) => o.items.reduce((n, i) => n + i.quantity, 0),
+      cell: (o) => o.items.reduce((n, i) => n + i.quantity, 0),
+    },
+    {
+      id: "total",
+      header: "Total",
+      align: "right",
+      sortValue: (o) => o.total,
+      className: "whitespace-nowrap",
+      cell: (o) => formatPrice(o.total),
+    },
+    {
+      id: "status",
+      header: "Estado",
+      cell: (o) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <OrderStatusBadges order={o} />
+          {o.stockIssue && (
+            <span className="font-medium text-red-600">Revisar stock</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "actions",
+      header: null,
+      srHeader: "Acciones",
+      align: "right",
+      className: "whitespace-nowrap",
+      cell: (o) => (
+        <div className="flex justify-end gap-3">
+          <Link
+            href={`/admin/orders/${o.id}`}
+            className="font-medium underline-offset-2 hover:underline"
+          >
+            Ver
+          </Link>
+          {o.status === "approved" && (
+            <button
+              type="button"
+              onClick={() => toggleShipped(o)}
+              className="font-medium underline-offset-2 hover:underline"
+            >
+              {o.shippedAt ? "Desmarcar envío" : "Marcar enviado"}
+            </button>
+          )}
+          {(o.status === "approved" || o.status === "pending") && (
+            <button
+              type="button"
+              onClick={() => setPendingCancel(o)}
+              className="font-medium text-red-600 underline-offset-2 hover:underline"
+            >
+              Cancelar
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   const isCancelled = (o: Order) => o.status === "cancelled" || o.status === "refunded";
   const visible = orders?.filter((o) => (tab === "cancelled") === isCancelled(o));
 
@@ -56,12 +143,7 @@ export function OrderAdminList() {
     <>
       <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Pedidos</h1>
-        <Link
-          href="/admin"
-          className="rounded-lg border border-black/20 px-4 py-2 text-sm font-medium"
-        >
-          Volver a productos
-        </Link>
+        
       </div>
       <div role="tablist" className="mb-4 flex gap-2">
         {(["active", "cancelled"] as const).map((t) => (
@@ -87,51 +169,13 @@ export function OrderAdminList() {
           {tab === "active" ? "Aún no hay pedidos." : "No hay pedidos cancelados."}
         </p>
       ) : (
-        <ul className="divide-y divide-black/10 rounded-xl border border-black/10 bg-white/70">
-          {visible.map((o) => (
-            <li key={o.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 text-sm">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">
-                  {orderLabel(o)} · {o.shipping.name} · {formatPrice(o.total)}
-                </p>
-                <p className="text-neutral-500">
-                  {new Date(o.createdAt).toLocaleString("es-AR")} ·{" "}
-                  {o.items.reduce((n, i) => n + i.quantity, 0)} productos
-                </p>
-                {o.stockIssue && (
-                  <p className="font-medium text-red-600">Revisar stock</p>
-                )}
-              </div>
-              <OrderStatusBadges order={o} />
-              <div className="flex gap-3">
-                <Link
-                  href={`/admin/orders/${o.id}`}
-                  className="font-medium underline-offset-2 hover:underline"
-                >
-                  Ver
-                </Link>
-                {o.status === "approved" && (
-                  <button
-                    type="button"
-                    onClick={() => toggleShipped(o)}
-                    className="font-medium underline-offset-2 hover:underline"
-                  >
-                    {o.shippedAt ? "Desmarcar envío" : "Marcar enviado"}
-                  </button>
-                )}
-                {(o.status === "approved" || o.status === "pending") && (
-                  <button
-                    type="button"
-                    onClick={() => setPendingCancel(o)}
-                    className="font-medium text-red-600 underline-offset-2 hover:underline"
-                  >
-                    Cancelar
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+        <DataTable
+          columns={columns}
+          rows={visible}
+          rowKey={(o) => o.id}
+          emptyMessage="No hay pedidos."
+          resetKey={tab}
+        />
       )}
 
       {pendingCancel && (

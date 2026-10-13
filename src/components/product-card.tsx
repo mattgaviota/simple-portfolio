@@ -25,9 +25,9 @@ export function ProductCard({ product }: { product: Product }) {
             </span>
           )}
         </div>
-        <div className="flex flex-1 flex-col gap-2 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="font-semibold leading-tight">{product.name}</h2>
+        <div className="flex flex-1 flex-col gap-1.5 p-3 sm:gap-2 sm:p-4">
+          <div className="flex flex-col items-start gap-0.5 sm:flex-row sm:justify-between sm:gap-3">
+            <h2 className="text-sm font-semibold leading-tight sm:text-base">{product.name}</h2>
             <span className="shrink-0 font-semibold">
               {formatPrice(product.price)}
             </span>

@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import { DataTable } from "@/components/data-table";
 import {
   createCategory,
   deleteCategory,
@@ -66,12 +66,7 @@ export function CategoryManager() {
     <>
       <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Categorías</h1>
-        <Link
-          href="/admin"
-          className="rounded-lg border border-black/20 px-4 py-2 text-sm font-medium"
-        >
-          Volver a productos
-        </Link>
+        
       </div>
 
       <form onSubmit={onAdd} className="mb-6 flex max-w-md gap-3">
@@ -98,21 +93,37 @@ export function CategoryManager() {
       ) : categories.length === 0 ? (
         <p className="text-neutral-500">Aún no hay categorías.</p>
       ) : (
-        <ul className="max-w-md divide-y divide-black/10 rounded-xl border border-black/10">
-          {categories.map((c) => (
-            <li key={c.id} className="flex items-center justify-between p-3">
-              <span>{c.name}</span>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onDelete(c)}
-                className="text-sm font-medium text-red-600 underline-offset-2 hover:underline disabled:opacity-50"
-              >
-                Eliminar
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="max-w-xl">
+          <DataTable
+            columns={[
+              {
+                id: "name",
+                header: "Nombre",
+                sortValue: (c) => c.name,
+                cell: (c) => c.name,
+              },
+              {
+                id: "actions",
+                header: null,
+                srHeader: "Acciones",
+                align: "right",
+                cell: (c) => (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onDelete(c)}
+                    className="font-medium text-red-600 underline-offset-2 hover:underline disabled:opacity-50"
+                  >
+                    Eliminar
+                  </button>
+                ),
+              },
+            ]}
+            rows={categories}
+            rowKey={(c) => c.id}
+            emptyMessage="Aún no hay categorías."
+          />
+        </div>
       )}
     </>
   );

@@ -3,9 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ImagePicker } from "@/components/image-picker";
 import { listCategories } from "@/lib/categories";
-import { createProduct, updateProduct } from "@/lib/products";
-import type { Category, Product, ProductColor } from "@/types/product";
+import { createProduct, updateProduct, type ExtraSlot } from "@/lib/products";
+import {
+  MAX_EXTRA_IMAGES,
+  type Category,
+  type Product,
+  type ProductColor,
+} from "@/types/product";
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 const COLOR_COUNT = 3;
@@ -19,6 +25,21 @@ function initialColors(product?: Product): ColorSlot[] {
     hex: product?.colors[i]?.hex ?? "#000000",
   }));
 }
+
+type ExtraState = {
+  file: File | null;
+  preview: string | null;
+  remove: boolean;
+  nonce: number;
+};
+
+const emptyExtras = (): ExtraState[] =>
+  Array.from({ length: MAX_EXTRA_IMAGES }, () => ({
+    file: null,
+    preview: null,
+    remove: false,
+    nonce: 0,
+  }));
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -44,6 +65,8 @@ export function ProductForm({ product }: { product?: Product }) {
   const preview = localPreview ?? product?.imageUrl ?? "";
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [extras, setExtras] = useState<ExtraState[]>(emptyExtras);
+  const [fileKey, setFileKey] = useState(0);
 
   useEffect(() => {
     listCategories()
@@ -74,6 +97,49 @@ export function ProductForm({ product }: { product?: Product }) {
     setError(null);
     setImage(file);
     setLocalPreview(URL.createObjectURL(file));
+  }
+
+  function setExtra(index: number, next: ExtraState) {
+    setExtras((prev) => {
+      const old = prev[index].preview;
+      if (old && old !== next.preview) URL.revokeObjectURL(old);
+      return prev.map((e, i) => (i === index ? next : e));
+    });
+  }
+
+  function onExtraChange(index: number, file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("El archivo debe ser una imagen.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setError("La imagen debe pesar 5 MB o menos.");
+      return;
+    }
+    setError(null);
+    setExtra(index, {
+      file,
+      preview: URL.createObjectURL(file),
+      remove: false,
+      nonce: extras[index].nonce,
+    });
+  }
+
+  function resetForm() {
+    extras.forEach((e) => e.preview && URL.revokeObjectURL(e.preview));
+    setExtras(emptyExtras());
+    setName("");
+    setDescription("");
+    setPrice("");
+    setAmount("");
+    setCategoryId("");
+    setColors(initialColors());
+    setImage(null);
+    setLocalPreview(null);
+    setError(null);
+    setSaving(false);
+    setFileKey((k) => k + 1);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -124,9 +190,18 @@ export function ProductForm({ product }: { product?: Product }) {
     setSaving(true);
     try {
       if (product) {
-        await updateProduct(product, input, image);
+        const slots: ExtraSlot[] = extras.map((e) => ({
+          file: e.file,
+          remove: e.remove,
+        }));
+        await updateProduct(product, input, image, slots);
       } else if (image) {
-        await createProduct(input, image);
+        await createProduct(
+          input,
+          image,
+          extras.map((e) => e.file),
+        );
+        resetForm();
       }
       router.push("/admin");
     } catch {
@@ -160,7 +235,7 @@ export function ProductForm({ product }: { product?: Product }) {
 
       <div className="grid grid-cols-2 gap-4">
         <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Precio (USD)
+          Precio
           <input
             className={inputClass}
             type="number"
@@ -258,11 +333,10 @@ export function ProductForm({ product }: { product?: Product }) {
 
       <div className="flex flex-col gap-1.5 text-sm font-medium">
         Imagen
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => onImageChange(e.target.files?.[0] ?? null)}
-          className="text-sm font-normal"
+        <ImagePicker
+          key={fileKey}
+          hasImage={!!product?.imageUrl}
+          onChange={onImageChange}
         />
         {preview && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -273,6 +347,53 @@ export function ProductForm({ product }: { product?: Product }) {
           />
         )}
       </div>
+
+      <fieldset className="flex flex-col gap-4">
+        <legend className="mb-1 text-sm font-medium">
+          Imágenes adicionales{" "}
+          <span className="font-normal text-neutral-500">
+            (opcionales, aparecen en el carrusel del producto)
+          </span>
+        </legend>
+        {extras.map((extra, i) => {
+          const existing = product?.extraImages[i];
+          const shown =
+            extra.preview ?? (extra.remove ? "" : (existing?.url ?? ""));
+          return (
+            <div key={i} className="flex flex-col gap-2">
+              <ImagePicker
+                key={`${fileKey}-${i}-${extra.nonce}`}
+                hasImage={!!shown}
+                onChange={(file) => onExtraChange(i, file)}
+              />
+              {shown && (
+                <div className="flex items-end gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={shown}
+                    alt={`Vista previa de la imagen adicional ${i + 1}`}
+                    className="h-32 w-32 rounded-lg object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExtra(i, {
+                        file: null,
+                        preview: null,
+                        remove: true,
+                        nonce: extra.nonce + 1,
+                      })
+                    }
+                    className="text-xs font-medium text-red-600 underline"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </fieldset>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
