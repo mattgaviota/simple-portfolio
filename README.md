@@ -1,21 +1,59 @@
 # Portfolio
 
-Responsive product gallery with a protected admin area. Next.js (App Router) + Tailwind, Firebase **client SDK only** (Auth, Firestore, Storage). There is no server-side Firebase code.
+Responsive product store with a protected admin area. Next.js 16 (App Router) + Tailwind, Firebase and Mercado Pago.
 
-- `/` public gallery
-- `/admin` Google sign-in (single allowlisted email), create / edit / delete products
+Firebase is used in two ways:
 
-- `/cart` cart + contact form, pays through Mercado Pago Checkout Pro
-- `/admin/orders` read-only order list
+- **Client SDK (browser):** Auth (Google sign-in), Firestore and Storage for the gallery, the admin screens and the store settings. Access is controlled by `firestore.rules` and `storage.rules`.
+- **Admin SDK (server only):** the API routes under `src/app/api` (checkout, Mercado Pago webhook, order status, order cancellation) and the confirmation email use a service account to write orders, which the client rules do not allow. See [Mercado Pago](#mercado-pago-checkout-pro).
 
-Product fields: name, image, description, price, amount (stock; the gallery shows a "Sold out" badge at 0).
+## Pages
+
+| Route | What it does |
+| --- | --- |
+| `/` | Public gallery |
+| `/products/[id]` | Product page |
+| `/cart` | Cart and contact form, pays through Mercado Pago |
+| `/checkout/result` | Payment result, polls the order status |
+| `/admin` | Products table (Google sign-in, single allowlisted email) |
+| `/admin/new`, `/admin/[id]/edit` | Create / edit a product |
+| `/admin/orders`, `/admin/orders/[id]` | Orders and order detail |
+| `/admin/categories` | Product categories |
+| `/admin/settings` | Store settings |
+
+## Features and options
+
+### Public site
+
+- **Header:** sticky, shows the store logo, title and slogan, and the cart icon with the item count (the cart icon is hidden in `/admin`).
+- **Gallery:** two columns on mobile, up to four on large screens, square images, infinite scroll that loads 20 products at a time, and category chips to filter. Out-of-stock products show an "Agotado" badge. The subtitle under "Productos" is configured in the settings.
+- **Product page:** image carousel (arrows, dots and swipe) with the main image plus up to 2 extra images, color picker, quantity, "Add to cart" and a WhatsApp button (shown when a WhatsApp number is set in the settings).
+- **Footer:** links to the social networks set in the settings. Empty ones are not shown.
+
+### Admin
+
+The sidebar (a top bar on mobile) has, in order: Productos, Pedidos, Categorías, Ajustes and Cerrar sesión. Products, categories and orders use the same table: click a column header to sort (click again to reverse) and results are paginated at 20 rows when there are more.
+
+- **Products** (`/admin`): table with image, name, price, stock and category.
+  - Filter by category; sort by name, price or stock; default order is newest first.
+  - Product fields: name, description, price, stock (`amount`), category (required), up to 3 colors (name + hex, optional), main image (required, shown in the gallery) and up to 2 extra images (optional, shown in the product page carousel). Images must be image files of 5 MB or less. When editing you can replace the main image, and replace or remove each extra image. Deleting a product also deletes its images.
+- **Orders** (`/admin/orders`): "Pedidos" and "Cancelados" tabs; sort by order, customer, date, items or total; flags orders that need a stock review. From the list or the detail you can mark an order as shipped (approved orders only) and cancel it (refund + stock restore, see [Known limitations](#known-limitations)). Orders are never deleted.
+- **Categories** (`/admin/categories`): add and delete. A category used by products cannot be deleted.
+- **Settings** (`/admin/settings`):
+  - Store title and slogan (the title is also the browser tab title).
+  - Gallery subtitle (the text under "Productos"; empty hides it).
+  - Logo: upload an image or go back to the example logo.
+  - Colors: accent (buttons, title, links), background and text, with a color picker and hex field, and a button to restore the defaults. The hover color and the soft gradient behind the page are derived from these three. The defaults are `#6b5ca5`, `#fdf6fb` and `#3a3350`.
+  - Social networks: Instagram, Facebook, WhatsApp and TikTok. Usernames or URLs are accepted; WhatsApp takes a number with country code.
+
+  Settings are stored in the Firestore document `settings/store` and are read by the whole site, including the confirmation email header.
 
 ## Firebase setup
 
 1. Create a Firebase project and add a Web app; copy its config values.
 2. Authentication: enable the Google provider. Add your deployed domain under Authorized domains.
 3. Firestore: create a database, then publish `firestore.rules`.
-4. Storage: enable it (may require the Blaze plan), then publish `storage.rules`.
+4. Storage: enable it (may require the Blaze plan), then publish `storage.rules`. Uploads are limited to images under 5 MB.
 5. In both rules files replace `REPLACE_WITH_ADMIN_EMAIL` with your admin Google email. The rules are the real access control; the client-side check is only for UX.
 
 ## Local development
@@ -42,8 +80,10 @@ docker build \
   --build-arg NEXT_PUBLIC_SHIPPING_COUNTRY=Argentina \
   -t portfolio .
 
-docker run -p 3000:3000 portfolio
+docker run -p 3000:3000 --env-file .env.local portfolio
 ```
+
+The server-side variables (Mercado Pago, Resend, Firebase service account) are read at runtime, so they go to `docker run`, not to the build. See [Mercado Pago](#mercado-pago-checkout-pro).
 
 ## Mercado Pago (Checkout Pro)
 

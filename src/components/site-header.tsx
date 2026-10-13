@@ -1,16 +1,38 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { FaCartShopping } from "react-icons/fa6";
 import { useCart } from "@/lib/cart-context";
 import { useSettings } from "@/lib/settings-context";
 import { MOCK_LOGO } from "@/types/settings";
 
+function HideInAdmin({ children }: { children: React.ReactNode }) {
+  return usePathname().startsWith("/admin") ? null : children;
+}
+
+function CartLink() {
+  const { count } = useCart();
+
+  return (
+    <Link
+      href="/cart"
+      aria-label={`Carrito, ${count} productos`}
+      className="relative shrink-0 rounded-full border border-black/10 bg-white/80 p-3 text-accent shadow-sm hover:bg-white"
+    >
+      <FaCartShopping className="h-5 w-5" />
+      {count > 0 && (
+        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-xs font-semibold text-white">
+          {count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export function SiteHeader() {
   const { settings, loading } = useSettings();
-  const { count } = useCart();
-  const isAdmin = usePathname().startsWith("/admin");
 
   return (
     <header className="sticky top-0 z-40 border-b border-black/5 bg-[var(--background)]/85 backdrop-blur">
@@ -42,20 +64,11 @@ export function SiteHeader() {
           </>
         )}
       </Link>
-      {!isAdmin && (
-      <Link
-        href="/cart"
-        aria-label={`Carrito, ${count} productos`}
-        className="relative shrink-0 rounded-full border border-black/10 bg-white/80 p-3 text-accent shadow-sm hover:bg-white"
-      >
-        <FaCartShopping className="h-5 w-5" />
-        {count > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-xs font-semibold text-white">
-            {count}
-          </span>
-        )}
-      </Link>
-      )}
+      <Suspense fallback={<CartLink />}>
+        <HideInAdmin>
+          <CartLink />
+        </HideInAdmin>
+      </Suspense>
       </div>
     </header>
   );
