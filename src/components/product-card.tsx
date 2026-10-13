@@ -11,13 +11,13 @@ export function ProductCard({ product }: { product: Product }) {
       className="group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       <article className="flex h-full flex-col overflow-hidden transition-shadow group-hover:shadow-md rounded-xl border border-black/10 bg-white/80 shadow-sm backdrop-blur">
-        <div className="relative aspect-square bg-white/50">
+        <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-white/50">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={product.imageUrl}
             alt={product.name}
             loading="lazy"
-            className={`h-full w-full object-cover ${soldOut ? "opacity-60" : ""}`}
+            className={`absolute inset-0 h-full w-full object-cover ${soldOut ? "opacity-60" : ""}`}
           />
           {soldOut && (
             <span className="absolute left-3 top-3 rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white">
