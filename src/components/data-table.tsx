@@ -7,7 +7,8 @@ export type Column<T> = {
   header: React.ReactNode;
   /** Plain-text header for screen readers when `header` is empty. */
   srHeader?: string;
-  cell: (row: T) => React.ReactNode;
+  /** `index` is the 0-based position of the row in the sorted list, across pages. */
+  cell: (row: T, index: number) => React.ReactNode;
   /** Makes the column sortable by this value. */
   sortValue?: (row: T) => string | number;
   align?: "left" | "right";
@@ -129,14 +130,14 @@ export function DataTable<T>({
                 </td>
               </tr>
             ) : (
-              visible.map((row) => (
+              visible.map((row, i) => (
                 <tr key={rowKey(row)}>
                   {columns.map((c) => (
                     <td
                       key={c.id}
                       className={`p-3 ${alignClass(c)} ${c.className ?? ""}`}
                     >
-                      {c.cell(row)}
+                      {c.cell(row, current * pageSize + i)}
                     </td>
                   ))}
                 </tr>

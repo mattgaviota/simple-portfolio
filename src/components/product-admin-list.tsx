@@ -10,6 +10,12 @@ import type { Product } from "@/types/product";
 
 const columns = (onDelete: (p: Product) => void): Column<Product>[] => [
   {
+    id: "index",
+    header: "#",
+    className: "w-10 text-neutral-500",
+    cell: (_p, i) => i + 1,
+  },
+  {
     id: "image",
     header: null,
     srHeader: "Imagen",

@@ -157,8 +157,12 @@ export async function updateProduct(
     await Promise.all(uploadedPaths.map(removeImage));
     throw error;
   }
-  if (newImage) await removeImage(product.imagePath);
-  await Promise.all(staleExtraPaths.map(removeImage));
+  // The product is already saved; old-file cleanup must not block the UI
+  // (a stalled storage delete used to leave the save button stuck).
+  const stalePaths = newImage
+    ? [product.imagePath, ...staleExtraPaths]
+    : staleExtraPaths;
+  void Promise.all(stalePaths.map(removeImage));
 }
 
 export async function deleteProduct(product: Product) {
