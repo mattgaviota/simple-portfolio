@@ -2,7 +2,11 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getSettings } from "@/lib/settings";
-import { DEFAULT_SETTINGS, type StoreSettings } from "@/types/settings";
+import {
+  DEFAULT_SETTINGS,
+  MOCK_LOGO,
+  type StoreSettings,
+} from "@/types/settings";
 
 type SettingsState = {
   settings: StoreSettings;
@@ -26,6 +30,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!loading) document.title = settings.title;
   }, [loading, settings.title]);
+
+  useEffect(() => {
+    if (loading) return;
+    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.removeAttribute("type");
+    link.href = settings.logoUrl || MOCK_LOGO;
+  }, [loading, settings.logoUrl]);
 
   useEffect(() => {
     const style = document.documentElement.style;
